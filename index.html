@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frequency Modulation Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="studio-header">
+        <h1>Frequency Modulation Studio</h1>
+        <div class="math-sub">
+            <div id="eq-wbfm">$$ s(t) = A_c \cos\left(2\pi f_c t + 2\pi k_f \int_{0}^{t} m(\tau) d\tau\right) $$</div>
+            <div id="eq-nbfm" style="display: none;">$$ s(t) \approx A_c \cos(2\pi f_c t) - \beta A_c \sin(2\pi f_c t)\sin(2\pi f_m t) $$</div>
+        </div>
+        <div class="header-mode-toggle" id="mode-grid">
+            <button class="neon-btn" data-mode="NBFM">NBFM MODE</button>
+            <button class="neon-btn active" data-mode="WBFM">WBFM MODE</button>
+        </div>
+    </header>
+
+    <div class="studio-container">
+        <!-- LEFT PANEL: Parameters -->
+        <aside class="sidebar-params">
+            <div class="panel">
+                <h2 class="panel-title">PARAMETERS</h2>
+                
+                <div class="param-row">
+                    <div class="param-label">Carrier Freq ($f_c$):</div>
+                    <div class="param-value"><input type="number" id="fc-number" value="440"> <span>Hz</span></div>
+                </div>
+                <input type="range" id="fc-slider" class="neon-slider" min="100" max="2000" value="440">
+
+                <div class="param-row">
+                    <div class="param-label">Modulator Freq ($f_{m1}$):</div>
+                    <div class="param-value"><input type="number" id="fm-number" value="16.7"> <span>Hz</span></div>
+                </div>
+                <input type="range" id="fm-slider" class="neon-slider" min="1" max="200" value="16.7" step="0.1">
+
+                <div id="fm2-wrapper" style="display: none;">
+                    <div class="param-row">
+                        <div class="param-label">Multi-Tone Freq 2 ($f_{m2}$):</div>
+                        <div class="param-value"><input type="number" id="fm2-number" value="30"> <span>Hz</span></div>
+                    </div>
+                    <input type="range" id="fm2-slider" class="neon-slider" min="1" max="200" value="30" step="0.1">
+                </div>
+
+                <div class="param-row">
+                    <div class="param-label">Freq Deviation ($\Delta f$):</div>
+                    <div class="param-value"><input type="number" id="dev-number" value="100"> <span>Hz</span></div>
+                </div>
+                <input type="range" id="dev-slider" class="neon-slider" min="1" max="1000" value="100">
+
+                <div class="param-row">
+                    <div class="param-label">Modulation Index ($\beta$):</div>
+                    <div class="param-value"><input type="number" id="beta-in-number" value="6.0" step="0.1"></div>
+                </div>
+                <input type="range" id="beta-slider" class="neon-slider" min="0.1" max="30" value="6.0" step="0.1">
+
+                <div class="param-row">
+                    <div class="param-label">Channel Noise ($n(t)$):</div>
+                    <div class="param-value"><input type="number" id="noise-number" value="0"> <span>%</span></div>
+                </div>
+                <input type="range" id="noise-slider" class="neon-slider" min="0" max="100" value="0">
+
+                <div id="phasor-angle-container" style="display: none;">
+                    <div class="param-row">
+                        <div class="param-label">Phasor Angle ($\theta$):</div>
+                        <div class="param-value"><input type="number" id="theta-number" value="45"> <span>&deg;</span></div>
+                    </div>
+                    <input type="range" id="theta-slider" class="neon-slider" min="0" max="360" value="45">
+                </div>
+
+                <div class="divider"></div>
+                
+                <div class="section-label">Modulator Waveform</div>
+                <div class="button-grid" id="wave-grid">
+                    <button class="neon-btn active" data-wave="sine">Sine</button>
+                    <button class="neon-btn" data-wave="square">Square</button>
+                    <button class="neon-btn" data-wave="triangle">Triangle</button>
+                    <button class="neon-btn" id="btn-multi">Multi-Tone</button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section-label">Domain Representation</div>
+                <div class="button-grid" id="domain-grid">
+                    <button class="neon-btn active" data-domain="all">All Domains</button>
+                    <button class="neon-btn" data-domain="time">Time Domain</button>
+                    <button class="neon-btn" data-domain="freq">Frequency</button>
+                    <button class="neon-btn" data-domain="phasor">Phasor Diagram</button>
+                    <button class="neon-btn" data-domain="bessel" style="grid-column: span 2;">Bessel Curves</button>
+                </div>
+
+                <div class="divider"></div>
+                
+                <div class="analytics-box">
+                    <h3 class="analytics-title">LIVE SYSTEM ANALYTICS</h3>
+                    <div class="analytic-row">
+                        <span>Effective $\beta$</span>
+                        <span id="live-beta" class="val">1.00</span>
+                    </div>
+                    <div class="analytic-row">
+                        <span>Est. Bandwidth</span>
+                        <span id="live-bw" class="val">200 Hz</span>
+                    </div>
+                    <div class="analytic-row highlight">
+                        <span>FM Type</span>
+                        <span id="live-type" class="val">WBFM</span>
+                    </div>
+                </div>
+
+                <button id="audio-btn" class="start-engine-btn">
+                    <i class="ph ph-play"></i> Start Engine
+                </button>
+            </div>
+        </aside>
+
+        <!-- RIGHT PANEL: Oscilloscope Plots -->
+        <main class="main-oscilloscope">
+            <div id="view-time" class="domain-view" style="display: flex; flex-direction: column; flex: 1;">
+                <div class="plot-wrapper" id="plot-modulating"></div>
+                <div class="plot-wrapper" id="plot-carrier"></div>
+                <div class="plot-wrapper" id="plot-fm"></div>
+            </div>
+            <div id="view-freq" class="domain-view" style="display: flex; flex-direction: column; flex: 1;">
+                <div class="plot-wrapper" id="plot-freq"></div>
+            </div>
+            <div id="view-phasor" class="domain-view" style="display: none; flex-direction: column; flex: 1;">
+                <div class="plot-wrapper" id="plot-phasor" style="min-height: 400px;"></div>
+            </div>
+            <div id="view-bessel" class="domain-view" style="display: none; flex-direction: column; flex: 1;">
+                <div class="plot-wrapper" id="plot-bessel" style="min-height: 400px;"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- BOTTOM PANEL: Theoretical Data -->
+    <footer class="theory-footer">
+        <h2 class="footer-title">THEORETICAL CALCULATION THEOREM & OUTPUT DATA</h2>
+        <div class="data-cards">
+            <div class="data-card">
+                <div class="card-title">MAX FREQUENCY ($f_{max}$)</div>
+                <div class="card-val" id="card-fmax">540.00 Hz</div>
+                <div class="card-eq">Equation: $f_c + \Delta f$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">MIN FREQUENCY ($f_{min}$)</div>
+                <div class="card-val" id="card-fmin">340.00 Hz</div>
+                <div class="card-eq">Equation: $f_c - \Delta f$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">MODULATION INDEX ($\beta$)</div>
+                <div class="card-val highlight-val" id="card-beta">1.00</div>
+                <div class="card-eq">Equation: $\Delta f / f_m$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">CARSON'S BANDWIDTH ($BW$)</div>
+                <div class="card-val highlight-val" id="card-bw">233.4 Hz</div>
+                <div class="card-eq">Equation: $2(\Delta f + f_m)$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">TOTAL POWER ($P_t$)</div>
+                <div class="card-val" id="card-pt">1.000 W</div>
+                <div class="card-eq">Equation: $P_c + P_{sb}$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">CARRIER POWER ($P_c$)</div>
+                <div class="card-val" id="card-pc">1.000 W</div>
+                <div class="card-eq">Equation: $f(\beta)$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">SIDEBAND POWER ($P_{sb}$)</div>
+                <div class="card-val" id="card-psb">0.000 W</div>
+                <div class="card-eq">Equation: $P_t - P_c$</div>
+            </div>
+            <div class="data-card">
+                <div class="card-title">EFFICIENCY ($\eta$)</div>
+                <div class="card-val highlight-val" id="card-eta">0.0%</div>
+                <div class="card-eq">Equation: $(P_{sb} / P_t) \times 100\%$</div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
